@@ -8,6 +8,8 @@ challenge?
 To accept your mission, enter ```(main n)``` where ```n``` is the size of the board you
 would like to unscramble.
 
+To start a new game of the same size, press 'N'.
+
 Potential future updates:
  - Move counter / score system
  - Self-contained UI
