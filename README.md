@@ -1,7 +1,13 @@
 # Pipe Game
 
-This game was written as a personal project. It is written in Racket after being inspired by Matthias Felleisen's book Realm of Racket.
+Help! I was trying to make a game in racket, but all of my computer's circuits
+got scrambled! I need you to help me unscramble all of the tiles and connect the
+circuits back up again so that I can keep on Racketing. Will you accept the
+challenge? 
 
-To run it, open up the cablink.rkt file and enter ```(main)``` into the interactions window. 
+To accept your mission, enter ```(main n)``` where ```n``` is the size of the board you
+would like to unscramble.
 
-Currently, the game works on the provided board that I hardcoded into it, future plans involve adapting a maze-generation algorithm I wrote in a class project to randomly generate boards and building in better UI (adding functionality for generating a new board at game-over, creating a score system based on the number of moves, getting better images for each of the cells, etc.) in order to make it into a standalone executable. 
+Potential future updates:
+ - Move counter / score system
+ - Self-contained UI
