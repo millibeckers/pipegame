@@ -11,5 +11,4 @@ would like to unscramble.
 To start a new game of the same size, press 'N'.
 
 Potential future updates:
- - Move counter / score system
  - Self-contained UI
