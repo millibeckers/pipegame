@@ -8,7 +8,8 @@
          (struct-out posn)
          mouse-handler
          key-handler
-         generate-board)
+         generate-board
+         all-connected?)
 
 #|
 
@@ -21,13 +22,14 @@ To accept your mission, enter (main n) where n is the size of the board
 you would like to solve.
 
 TO BE IMPLEMENTED:
-- swap out big-bang for racket/gui
+- swap out big-bang for racket/gui (this may not happen)
 - self-contained ui
 
 |#
 
-
-;;; STRUCTURE DEFINITIONS
+;; =============================================================================
+;;; DATA DEFINITIONS
+;; =============================================================================
 
 (struct board (cells
                size
@@ -104,8 +106,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 ;; Used in cell generation only 
 
 
-
-;;; INPUT HANDLERS 
+;; =============================================================================
+;;; INPUT HANDLERS
+;; =============================================================================
 
 ;; mouse-handler : Board Number Number MouseEvent -> Board
 ;; Receives a mouse-event and coordinates in cell form and dispatches to
@@ -128,8 +131,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 
 
 
-
+;; =============================================================================
 ;;; BOARD
+;; =============================================================================
 
 ;; all-connected? : Board -> Boolean
 ;; Determines if all cells are connected (according to the connnected field)
@@ -137,9 +141,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
   (andmap cell-connected (board-cells board)))
 
 
-
-
+;; =============================================================================
 ;;; BOARD GENERATION
+;; =============================================================================
 
 ;; generate-board : Number -> Board
 ;; Generates a square board with the dimensions of size
@@ -157,50 +161,39 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 ;; assign-edges : Size [Listof Edge] -> [Listof Edge]
 ;; Create edges to connect all cells, giving them random weights
 (define (assign-edges size)
+
+  ;; Edge Number Number Number Number -> Boolean
+  ;; Determines if the given edge connects to the cell in the direction
+  ;; given in the form of offets
+  (define (connected-to? e x y off-x off-y)
+    (or (and (equal? (edge-from e) (posn x y))
+             (equal? (edge-to e) (posn (+ off-x x) (+ off-y y))))
+        (and (equal? (edge-to e) (posn x y))
+             (equal? (edge-from e) (posn (+ off-x x) (+ off-y y))))))
+
+  ;; Number Number Number Number -> Edge
+  ;; Creates an edge with the given starting point and an ending point
+  ;; that is determined by the offset
+  (define (make-new-edge x y off-x off-y)
+    (edge (random (* size size)) (posn x y) (posn (+ off-x x) (+ off-y y))))
+  
   (for*/fold ([edges '()])
              ([x (range size)]
               [y (range size)])
     (define temp '())
     (unless (or (= x 0)
-                (memf (λ (e)
-                        (or (and (equal? (edge-from e) (posn x y))
-                                 (equal? (edge-to e) (posn (sub1 x) y)))
-                            (and (equal? (edge-to e) (posn x y))
-                                 (equal? (edge-from e) (posn (sub1 x) y)))))
-                      edges))
-      (set! temp (cons (edge (random (* size size))
-                             (posn x y)
-                             (posn (sub1 x) y)) temp)))
+                (memf (λ (e) (connected-to? e x y -1 0)) edges))
+      (set! temp (cons (make-new-edge x y -1 0) temp)))
     (unless (or (= x (sub1 size))
-                (memf (λ (e)
-                        (or (and (equal? (edge-from e) (posn x y))
-                                 (equal? (edge-to e) (posn (add1 x) y)))
-                            (and (equal? (edge-to e) (posn x y))
-                                 (equal? (edge-from e) (posn (add1 x) y)))))
-                      edges))
-      (set! temp (cons (edge (random (* size size))
-                             (posn x y)
-                             (posn (add1 x) y)) temp)))
+                (memf (λ (e) (connected-to? e x y 1 0)) edges))
+      (set! temp (cons (make-new-edge x y 1 0) temp)))
     (unless (or (= y 0)
-                (memf (λ (e)
-                        (or (and (equal? (edge-from e) (posn x y))
-                                 (equal? (edge-to e) (posn x (sub1 y))))
-                            (and (equal? (edge-to e) (posn x y))
-                                 (equal? (edge-from e) (posn x (sub1 y))))))
-                      edges))
-      (set! temp (cons (edge (random (* size size))
-                             (posn x y)
-                             (posn x (sub1 y))) temp)))
+                (memf (λ (e) (connected-to? e x y 0 -1)) edges))
+      (set! temp (cons (make-new-edge x y 0 -1) temp)))
     (unless (or (= y (sub1 size))
-                (memf (λ (e)
-                        (or (and (equal? (edge-from e) (posn x y))
-                                 (equal? (edge-to e) (posn x (add1 y))))
-                            (and (equal? (edge-to e) (posn x y))
-                                 (equal? (edge-from e) (posn x (add1 y))))))
-                      edges))
-      (set! temp (cons (edge (random (* size size))
-                             (posn x y)
-                             (posn x (add1 y))) temp)))
+                (memf (λ (e) (connected-to? e x y 0 1)) edges))
+      (set! temp (cons (make-new-edge x y 0 1) temp)))
+    
     (append temp edges)))
 
 
@@ -217,7 +210,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
        (cons (cons (posn x y) (posn x y)) l))))
   
   (define accepted-edges '())
-
   
   (for ([e edges]
         #:when (not (equal? (find working-trees (edge-from e))
@@ -232,8 +224,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
   ;; Return the edges for the minimum spanning tree
   accepted-edges)
 
-
+;; -------------------------------------
 ;;; Utility functions for Kruskal's algorithm
+;; -------------------------------------
 
 ;; union! : [Hashmap Posn Posn] Posn Posn -> Void
 ;; union the two trees together in the hashmap
@@ -345,8 +338,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 
 
 
-
+;; =============================================================================
 ;;; CELLS
+;; =============================================================================
 
 ;; update-connected! : [Listof Cell] -> Void
 ;; Updates the cell-connected field if the cell is connected to the power source
@@ -438,8 +432,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 
 
 
-
+;; =============================================================================
 ;;; UTILS
+;; =============================================================================
 
 ;; posn-neighbor? : Posn Posn -> Orientation-or-False
 ;; Determines if p2 is directly north, south, east, or west of p1, or
@@ -519,8 +514,9 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 
 
 
-
-;;; TESTS 
+;; =============================================================================
+;;; TESTS
+;; =============================================================================
 (module+ test 
   
   (require rackunit rackunit/text-ui)
