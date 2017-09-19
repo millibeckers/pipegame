@@ -7,7 +7,6 @@
          (struct-out power-source)
          (struct-out posn)
          mouse-handler
-         key-handler
          generate-board
          all-connected?)
 
@@ -25,7 +24,6 @@ in the interactions window
 FUTURE IDEAS:
 - Implement graphics with racket/gui (not likely)
 - Add a timer
-- Save statistics in a file that will persist across plays
 
 |#
 
@@ -123,13 +121,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
       (rotate-cell! (posn x y) board)
       (update-connected! (board-cells board))))
   board)
-
-
-;; key-handler : Board KeyEvent -> Board
-;; Starts a new game of same size if key 'n' is pressed
-(define (key-handler board key)
-  (cond [(key=? key "n") (generate-board (board-size board))]
-        [else board]))
 
 
 
@@ -619,10 +610,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
                   (mouse-handler b 10 10 "button-up")
                   b)
                 2x2-board)
-
-  (check-equal? (key-handler 2x2-board "x") 2x2-board)
-  (check-not-equal? (key-handler 2x2-board "n") 2x2-board)
-  (check-equal? (board-size (key-handler 2x2-board "n")) 2)
 
   ;; Tests on board operations
   (check-true (all-connected? 3x3-board-conn))
