@@ -7,7 +7,6 @@
          (struct-out power-source)
          (struct-out posn)
          mouse-handler
-         key-handler
          generate-board
          all-connected?)
 
@@ -16,14 +15,15 @@
 Help! I was trying to make a game in racket, but all of my computer's circuits
 got scrambled! I need you to help me unscramble all of the tiles and connect the
 circuits back up again so that I can keep on Racketing. Will you accept the
-challenge? 
+challenge?
 
-To accept your mission, enter (main n) where n is the size of the board
-you would like to solve.
+In order to help me out, open and run the pipegame-view.rkt file and run (main)
+in the interactions window
 
-TO BE IMPLEMENTED:
-- swap out big-bang for racket/gui (this may not happen)
-- self-contained ui
+
+FUTURE IDEAS:
+- Implement graphics with racket/gui (not likely)
+- Add a timer
 
 |#
 
@@ -121,13 +121,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
       (rotate-cell! (posn x y) board)
       (update-connected! (board-cells board))))
   board)
-
-
-;; key-handler : Board KeyEvent -> Board
-;; Starts a new game of same size if key 'n' is pressed
-(define (key-handler board key)
-  (cond [(key=? key "n") (generate-board (board-size board))]
-        [else board]))
 
 
 
@@ -332,7 +325,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 ;; Only occurs at board generation, therefore any cells being scrambled in this
 ;; way will need to be turned to get the solution.
 (define (scramble-cell! c board)
-  (define original-orientation (cell-orientation c))
   (for ([i (range (random 4))])
     (rotate-cell! (cell-posn c) board))) ; previous-turn doesn't matter here
 
@@ -436,7 +428,7 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
 ;;; UTILS
 ;; =============================================================================
 
-;; posn-neighbor? : Posn Posn -> Orientation-or-False
+;; posn-neighbor? : Posn Posn -> [Maybe Orientation]
 ;; Determines if p2 is directly north, south, east, or west of p1, or
 ;; false if they are not neighbors
 (define (posn-neighbor? p1 p2)
@@ -451,7 +443,7 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
         [else #f]))
 
 
-;; cell-at : Posn [Listof Cell] -> Cell-or-False
+;; cell-at : Posn [Listof Cell] -> [Maybe Cell]
 ;; Returns the cell at the given coordinates or #f if there is none 
 (define (cell-at p cells)
   (findf (λ (c) (equal? (cell-posn c) p)) cells))
@@ -618,10 +610,6 @@ THE DIFFERENT CELL SHAPES IN 'north POSITION
                   (mouse-handler b 10 10 "button-up")
                   b)
                 2x2-board)
-
-  (check-equal? (key-handler 2x2-board "x") 2x2-board)
-  (check-not-equal? (key-handler 2x2-board "n") 2x2-board)
-  (check-equal? (board-size (key-handler 2x2-board "n")) 2)
 
   ;; Tests on board operations
   (check-true (all-connected? 3x3-board-conn))

@@ -1,0 +1,6 @@
+.DS_Store
+
+compiled/
+*.rkt~
+
+statistics.txt
