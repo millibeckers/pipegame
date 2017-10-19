@@ -3,6 +3,7 @@
 (require "pipegame.rkt")
 
 (provide (struct-out sized-set)
+         (rename-out [stat-set-average-time average-time])
          stat-set
          total-plays
          plays
@@ -43,9 +44,6 @@ This file provides processing of game statistics for the pipegame.
 ;; -- average-time is the average time taken to successfully complete a board,
 ;;    or #f if no plays are recorded yet
 
-;; A Time is a Number
-;; Represents the number of seconds since the game was started
-
 ;; A Percent is an Integer [0-100]
 
 
@@ -60,39 +58,36 @@ This file provides processing of game statistics for the pipegame.
 ;;; PROCESSING BOARDS
 ;; =============================================================================
 
-;; add-to-stats : Statistics Board -> Statistics
+;; add-to-stats : Statistics Board Time -> Statistics
 ;; Factors the given board into the given set of statistics
-(define (add-to-stats stats board)
+(define (add-to-stats stats board time)
   (cond [(empty? stats) (list (sized-set (board-size board)
-                                           (new-stat-set board)))]
+                                           (new-stat-set board time)))]
         [else
          (if (= (sized-set-size (first stats)) (board-size board))
              (cons (sized-set (board-size board)
                               (add-to-stat-set
-                               (sized-set-stats (first stats)) board))
+                               (sized-set-stats (first stats)) board time))
                    (rest stats))
-             (cons (first stats) (add-to-stats (rest stats) board)))]))
+             (cons (first stats) (add-to-stats (rest stats) board time)))]))
 
-;; add-to-stat-set : StatSet Board -> StatSet
-;; Factors the given board into the given statset.
-(define (add-to-stat-set old-stat-set board)
-  (define plays (add1 (stat-set-plays old-stat-set)))
-  (define wins ((if (all-connected? board)
-                    add1
-                    identity)
-                (stat-set-wins old-stat-set)))
-  (define perfects ((if (and (all-connected? board)
-                             (<= (board-turns board) (board-perfect board)))
-                        add1
-                        identity)
-                    (stat-set-perfects old-stat-set)))
-  (define average-time #f) ; TODO update this once boards start including time
-  (stat-set plays wins perfects average-time))
+;; add-to-stat-set : StatSet Board Time -> StatSet
+;; Factors the given board and time into the given statset.
+(define (add-to-stat-set old-stat-set board time)
+  (define plays 1)
+  (define wins (if (all-connected? board) 1 0))
+  (define perfects (if (and (all-connected? board)
+                            (<= (board-turns board) (board-perfect board)))
+                       1
+                       0))
+  (define average-time (and (= wins 1) time))
+  
+  (add-stat-set old-stat-set (stat-set plays wins perfects average-time)))
 
-;; new-stat-set : Board -> StatSet
+;; new-stat-set : Board Time -> StatSet
 ;; Creates a new statset based on the given board
-(define (new-stat-set board)
-  (add-to-stat-set (stat-set 0 0 0 #f) board))
+(define (new-stat-set board time)
+  (add-to-stat-set (stat-set 0 0 0 #f) board time))
 
 
 ;; =============================================================================
@@ -159,28 +154,34 @@ This file provides processing of game statistics for the pipegame.
 ;; Adds the two sets of statistics
 (define (stats-add stats1 stats2)
   
-  ;; add-stat-set : SizedStatSet Statistics -> Statistics
+  ;; add-sized-set : SizedSet Statistics -> Statistics
   ;; Adds the given sized stat set to the given stats
-  (define (add-stat-set set stats)
+  (define (add-sized-set set stats)
     (cond [(empty? stats) (list set)]
           [(not (= (sized-set-size set) (sized-set-size (first stats))))
-           (cons (first stats) (add-stat-set set (rest stats)))]
+           (cons (first stats) (add-sized-set set (rest stats)))]
           [else
            (define set1 (sized-set-stats set))
            (define set2 (sized-set-stats (first stats)))
-           (define plays (+ (stat-set-plays set1) (stat-set-plays set2)))
-           (define wins (+ (stat-set-wins set1) (stat-set-wins set2)))
-           (define perfs (+ (stat-set-perfects set1) (stat-set-perfects set2)))
-           (define time (weighted-avg (stat-set-average-time set1)
-                                      (stat-set-wins set1)
-                                      (stat-set-average-time set2)
-                                      (stat-set-wins set2)))
            (cons (sized-set (sized-set-size set)
-                            (stat-set plays wins perfs time))
+                            (add-stat-set set1 set2))
                  (rest stats))]))
     
   (cond [(empty? stats2) stats1]
-        [else (stats-add (add-stat-set (first stats2) stats1) (rest stats2))]))
+        [else (stats-add (add-sized-set (first stats2) stats1) (rest stats2))]))
+
+;; add-stat-set : StatSet StatSet -> StatSet
+;; Adds the given two stat sets together
+(define (add-stat-set set1 set2)
+  (define plays (+ (stat-set-plays set1) (stat-set-plays set2)))
+  (define wins (+ (stat-set-wins set1) (stat-set-wins set2)))
+  (define perfs (+ (stat-set-perfects set1) (stat-set-perfects set2)))
+  (define time (weighted-avg (stat-set-average-time set1)
+                             (stat-set-wins set1)
+                             (stat-set-average-time set2)
+                             (stat-set-wins set2)))
+  (stat-set plays wins perfs time))
+
 
 ;; weighted-avg : [Maybe Number] Number [Maybe Number] Number -> [Maybe Number]
 ;; Determines the weighted average of the two pairs of averages and weights.
@@ -337,33 +338,33 @@ This file provides processing of game statistics for the pipegame.
   ;; Tests on processing boards
 
   ;; Adds lost board properly
-  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-lost)
+  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-lost #f)
                 (stat-set 6 3 1 #f))
   ;; Won't increase perfects if board isn't won
-  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-gave-up)
+  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-gave-up #f)
                 (stat-set 6 3 1 #f))
   ;; Adds won board properly
-  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-won)
+  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-won #f)
                 (stat-set 6 4 1 #f))
   ;; Adds perfect board properly
-  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-perfect)
+  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-perfect #f)
                 (stat-set 6 4 2 #f))
   ;; Adds super perfect board properly
-  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-super-perfect)
+  (check-equal? (add-to-stat-set 2x2-stat-set 2x2-super-perfect #f)
                 (stat-set 6 4 2 #f))
 
   ;; Adds stats for correct size
-  (check-equal? (add-to-stats 2-and-3 2x2-won)
+  (check-equal? (add-to-stats 2-and-3 2x2-won #f)
                 (list (sized-set 2 (stat-set 6 4 1 #f))
                       (sized-set 3 3x3-stat-set)))
-  (check-equal? (add-to-stats 2-and-3 3x3-won)
+  (check-equal? (add-to-stats 2-and-3 3x3-won #f)
                 (list (sized-set 2 2x2-stat-set)
                       (sized-set 3 (stat-set 8 5 1 #f))))
   ;; Adds new stat set
-  (check-equal? (add-to-stats 3-only 2x2-won)
+  (check-equal? (add-to-stats 3-only 2x2-won #f)
                 (list (sized-set 3 3x3-stat-set)
                       (sized-set 2 (stat-set 1 1 0 #f))))
-  (check-equal? (add-to-stats no-stats 2x2-perfect)
+  (check-equal? (add-to-stats no-stats 2x2-perfect #f)
                 (list (sized-set 2 (stat-set 1 1 1 #f))))
 
   

@@ -23,7 +23,6 @@ in the interactions window
 
 FUTURE IDEAS:
 - Implement graphics with racket/gui (not likely)
-- Add a timer
 
 |#
 
