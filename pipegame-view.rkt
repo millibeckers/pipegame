@@ -422,9 +422,10 @@ Run and evaluate (main) to launch a menu to get started.
 
 ;; time->string : Time -> String
 ;; Convert the given time into a string m:ss. Doesn't go into hours.
+;; If time is not an integer, will truncate
 (define (time->string time)
-  (define minutes (number->string (quotient time 60)))
-  (define seconds (number->string (modulo time 60)))
+  (define minutes (number->string (quotient (floor time) 60)))
+  (define seconds (number->string (modulo (floor time) 60)))
   (define formatted-seconds (if (= (string-length seconds) 1)
                                 (string-append "0" seconds)
                                 seconds))
@@ -683,6 +684,8 @@ Run and evaluate (main) to launch a menu to get started.
   (check-equal? (time->string 111) "1:51")
   (check-equal? (time->string 0) "0:00")
   (check-equal? (time->string 3700) "61:40")
+  (check-equal? (time->string 241/5) "0:48")
+  (check-equal? (time->string 244/5) "0:48")
 
   "all tests run")
   
