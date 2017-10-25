@@ -185,6 +185,11 @@ Run and evaluate (main) to launch a menu to get started.
 ;;; STATS
 ;; =============================================================================
 
+
+;; -------------------------------------
+;; RENDERING
+;; -------------------------------------
+
 ;; show-stats : -> Void
 ;; Launches a window that shows play statistics
 (define (show-stats)
@@ -282,6 +287,10 @@ Run and evaluate (main) to launch a menu to get started.
                   (board-state-time ending-state)))
   (save-stats game-stats))
 
+;; -------------------------------------
+;; INPUT HANDLING
+;; -------------------------------------
+
 ;; add-time : BoardState -> BoardState
 ;; Advances the time played for this board if the game is not over
 (define (add-time state)
@@ -314,9 +323,9 @@ Run and evaluate (main) to launch a menu to get started.
 
 
 
-;; =============================================================================
-;;; RENDER
-;; =============================================================================
+;; -------------------------------------
+;; RENDERING
+;; -------------------------------------
 
 ;; render : BoardState -> Image
 ;; Draws the current state of the board
@@ -476,6 +485,16 @@ Run and evaluate (main) to launch a menu to get started.
                            (sized-set 4 (stat-set 8 4 1 #f))
                            (sized-set 5 (stat-set 6 3 2 #f))
                            (sized-set 6 6-stat-set)))
+  (define very-long-stats (list
+                           (sized-set 6 (stat-set 4 3 3 26))
+                           (sized-set 7 (stat-set 3 2 1 36))
+                           (sized-set 8 (stat-set 33 32 19 45))
+                           (sized-set 9 (stat-set 8 7 4 58))
+                           (sized-set 10 (stat-set 2 2 0 70))
+                           (sized-set 11 (stat-set 4 0 0 #f))
+                           (sized-set 12 (stat-set 1 1 0 #f))
+                           (sized-set 13 (stat-set 1 1 0 168))
+                           (sized-set 15 (stat-set 1 0 0 #f))))
   
 
 
