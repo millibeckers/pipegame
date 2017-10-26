@@ -13,10 +13,12 @@ To start a new game of the same size, press 'N'.
 - Playable boards from size 6-15
 - Turn count tracker
 - Self-contained UI
-- Statistics information that persists across plays
+- Statistics information that persists across plays 
+- Scrollable statistics viewer 
 
 ## Potential future updates
-- Adding timer to games
+- Lock pieces that you know are solved 
+
 
 ## Additional Notes
 This game was written after reading [_Realm of Racket_](realmofracket.com) and so there are places where a slightly odd approach was taken because I wanted the chance to experiment with certain features.  
