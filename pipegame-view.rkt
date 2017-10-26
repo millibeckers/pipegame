@@ -27,6 +27,16 @@ Run and evaluate (main) to launch a menu to get started.
 ;; A Time is a Number
 ;; Represents the number of seconds since the game was started
 
+(struct stats-view [stats top] #:transparent)
+;; A StatsViewer is a (stats-view Statistics Number) where:
+;; -- stats is the statistics to display
+;; -- top is the y coordinate of the top of the stats image
+;; Allows us to implement rudimentary scrolling
+
+;; A ScrollDirection is one of:
+;; -- 'up
+;; -- 'down
+
 
 ;; =============================================================================
 ;; Graphics constants
@@ -44,6 +54,8 @@ Run and evaluate (main) to launch a menu to get started.
                  (/ width 2) (/ MENU-BUTTON-SIZE 2)
                  (rectangle width MENU-BUTTON-SIZE "solid" "lightblue"))))
 (define STAT-DIVIDER (text "---------" MENU-TEXT-HEIGHT "black"))
+(define MAX-STAT-HEIGHT 500)
+(define SCROLL-SIZE 20)
 (define MENU-BUTTONS (hash 0 (range 6 11) 1 (range 11 16)))
 (define END-IMG (bitmap/file "images/end.png"))
 (define ELBOW-IMG (bitmap/file "images/elbow.png"))
@@ -188,10 +200,60 @@ Run and evaluate (main) to launch a menu to get started.
 ;; show-stats : -> Void
 ;; Launches a window that shows play statistics
 (define (show-stats)
-  (big-bang (load-stats)
+  (big-bang (stats-view (load-stats) 0)
             [name "Pipegame Statistics"]
-            [to-draw render-stats])
+            [to-draw render-stats-viewer]
+            [on-key stat-scroll-handler])
   (void))
+
+;; -------------------------------------
+;; INPUT HANDLING
+;; -------------------------------------
+
+;; stat-scroll-handler : StatsViewer KeyEvent -> StatsViewer
+;; Scrolls the stat viewer if necessary/possible
+(define (stat-scroll-handler stats-viewer key-event)
+  (cond [(key=? key-event "up") (scroll-stats-viewer stats-viewer 'up)]
+        [(key=? key-event "down") (scroll-stats-viewer stats-viewer 'down)]
+        [else stats-viewer])) 
+
+
+;; scroll-stats-viewer : StatsViewer ScrollDirection -> StatsViewer
+;; Scrolls the stats viewer screen if needed
+(define (scroll-stats-viewer stats-viewer direction)
+  (define height (stats-image-height (stats-view-stats stats-viewer)))
+  (define amount (if (symbol=? direction 'up) SCROLL-SIZE (- SCROLL-SIZE)))
+  (define stop-at-end (if (symbol=? direction 'up) min max))
+  (define end
+    (if (symbol=? direction 'up) 0 (min 0 (- MAX-STAT-HEIGHT height))))
+  (stats-view
+   (stats-view-stats stats-viewer)
+   (stop-at-end end (+ amount (stats-view-top stats-viewer)))))
+
+
+;; stats-image-height : Statistics -> Number
+;; Determines what the full height of the stats image viewer would be
+(define (stats-image-height stats)
+  ; easiest way is just to render the image and get the height...
+  ; if there is a performance situation then we can revisit this
+  (image-height (render-stats stats)))
+
+
+;; -------------------------------------
+;; RENDERING
+;; -------------------------------------
+
+;; render-stats-viewer : StatViewer -> Image
+;; Renders the stat viewer
+(define (render-stats-viewer stats-viewer)
+  (define stats-image (render-stats (stats-view-stats stats-viewer)))
+  (define width (image-width stats-image))
+  (define height (min (image-height stats-image) MAX-STAT-HEIGHT))
+  (define background (empty-scene width height))
+  (place-image/align stats-image
+                0 (stats-view-top stats-viewer) 'left 'top
+               background))
+               
 
 ;; render-stats : Statistics -> Image
 ;; Displays play statistics
@@ -282,6 +344,10 @@ Run and evaluate (main) to launch a menu to get started.
                   (board-state-time ending-state)))
   (save-stats game-stats))
 
+;; -------------------------------------
+;; INPUT HANDLING
+;; -------------------------------------
+
 ;; add-time : BoardState -> BoardState
 ;; Advances the time played for this board if the game is not over
 (define (add-time state)
@@ -314,9 +380,9 @@ Run and evaluate (main) to launch a menu to get started.
 
 
 
-;; =============================================================================
-;;; RENDER
-;; =============================================================================
+;; -------------------------------------
+;; RENDERING
+;; -------------------------------------
 
 ;; render : BoardState -> Image
 ;; Draws the current state of the board
@@ -476,6 +542,18 @@ Run and evaluate (main) to launch a menu to get started.
                            (sized-set 4 (stat-set 8 4 1 #f))
                            (sized-set 5 (stat-set 6 3 2 #f))
                            (sized-set 6 6-stat-set)))
+  (define very-long-stats (list
+                           (sized-set 6 (stat-set 4 3 3 26))
+                           (sized-set 7 (stat-set 3 2 1 36))
+                           (sized-set 8 (stat-set 33 32 19 45))
+                           (sized-set 9 (stat-set 8 7 4 58))
+                           (sized-set 10 (stat-set 2 2 0 70))
+                           (sized-set 11 (stat-set 4 0 0 #f))
+                           (sized-set 12 (stat-set 1 1 0 #f))
+                           (sized-set 13 (stat-set 1 1 0 168))
+                           (sized-set 15 (stat-set 1 0 0 #f))))
+  (define very-long-stats-lowest (- MAX-STAT-HEIGHT
+                                    (stats-image-height very-long-stats)))
   
 
 
@@ -514,8 +592,59 @@ Run and evaluate (main) to launch a menu to get started.
   (check-equal? (stats-button-pressed? 30 60 "button-up") #false)
   (check-equal? (stats-button-pressed? 30 290 "button-down") #t)
 
+  
+  ;; tests for stat input handling
+  (check-equal? (stat-scroll-handler (stats-view 3-stats 0) "up")
+                (stats-view 3-stats 0))
+  (check-equal? (stat-scroll-handler (stats-view 3-stats 0) "down")
+                (stats-view 3-stats 0))
+  (check-equal? (stat-scroll-handler (stats-view 3-stats 0) "a")
+                (stats-view 3-stats 0))
+  (check-equal? (stat-scroll-handler
+                 (stats-view very-long-stats (- SCROLL-SIZE)) "up")
+                (stats-view very-long-stats 0))
+  (check-equal? (stat-scroll-handler (stats-view very-long-stats 0) "down")
+                (stats-view very-long-stats (- SCROLL-SIZE)))
+  (check-equal? (stat-scroll-handler
+                 (stats-view very-long-stats SCROLL-SIZE) "a")
+                (stats-view very-long-stats SCROLL-SIZE))
+
+  
+  ;; doesnt do too short ones
+  (check-equal? (scroll-stats-viewer (stats-view 3-stats 0) 'down)
+                (stats-view 3-stats 0))
+  (check-equal? (scroll-stats-viewer (stats-view 3-stats 0) 'up)
+                (stats-view 3-stats 0))
+  ;; scrolls up
+  (check-equal? (scroll-stats-viewer
+                 (stats-view very-long-stats (- SCROLL-SIZE)) 'up)
+                (stats-view very-long-stats 0))
+  ;; scrolls down
+  (check-equal? (scroll-stats-viewer (stats-view very-long-stats 0) 'down)
+                (stats-view very-long-stats (- SCROLL-SIZE)))
+  ;; doesnt scroll down if at bottom
+  (check-equal? (scroll-stats-viewer
+                 (stats-view very-long-stats very-long-stats-lowest) 'down)
+                (stats-view very-long-stats very-long-stats-lowest))
+  ;; doesnt scroll up at top
+  (check-equal? (scroll-stats-viewer (stats-view very-long-stats 0) 'up)
+                (stats-view very-long-stats 0))
+
+  (check-equal? (stats-image-height long-stats) 348)
+  (check-equal? (stats-image-height very-long-stats) 768)
 
   ;; tests for rendering stats
+  (check-equal? (render-stats-viewer (stats-view 3-stats 0))
+              (render-stats 3-stats))
+  (check-equal? (render-stats-viewer (stats-view very-long-stats 0))
+                (place-image/align (render-stats very-long-stats)
+                             0 0 'left 'top
+                             (empty-scene 200 MAX-STAT-HEIGHT)))
+  (check-equal? (render-stats-viewer (stats-view very-long-stats -20))
+                (place-image/align (render-stats very-long-stats)
+                             0 -20 'left 'top
+                             (empty-scene 200 MAX-STAT-HEIGHT)))
+  
   (check-equal? (render-stats '())
                 (place-image
                  (text "No statistics yet!" MENU-TEXT-HEIGHT "black")
